@@ -1,32 +1,13 @@
 import React, { useState, useCallback } from "react";
-import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle, Trash2, Sparkles, Bot } from "lucide-react";
+import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle, Trash2, Bot, ArrowRight, Globe, Link2, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ChatWidget } from "../components/ChatWidget";
-import { createBot } from "../lib/botApi";
+import { createBot, createDynamicBot } from "../lib/botApi";
 import { useAuth } from "../context/AuthContext";
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      duration: 0.3
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-    }
-  }
-};
+type BotMode = 'static' | 'dynamic';
+type AccessMode = 'public' | 'authenticated';
 
 interface UploadedFile {
   id: string;
@@ -40,318 +21,465 @@ interface UploadedFile {
 export const CreateBot: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+
+  // Shared state
+  const [mode, setMode] = useState<BotMode>('static');
   const [companyName, setCompanyName] = useState("");
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [botCreated, setBotCreated] = useState(false);
   const [createdBotId, setCreatedBotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect if not authenticated
+  // Static bot state
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Dynamic bot state
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [scrapeStats, setScrapeStats] = useState<{ pages: number; chunks: number } | null>(null);
+  const [accessMode, setAccessMode] = useState<AccessMode>('public');
+  const [loginUrl, setLoginUrl] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginRole, setLoginRole] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [acceptedWarning, setAcceptedWarning] = useState(false);
+
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    }
+    if (!isAuthenticated) navigate("/login");
   }, [isAuthenticated, navigate]);
 
+  // Reset when switching modes
+  const switchMode = (newMode: BotMode) => {
+    setMode(newMode);
+    setError(null);
+    setBotCreated(false);
+    setCreatedBotId(null);
+    setScrapeStats(null);
+    setFiles([]);
+    setCompanyName("");
+    setWebsiteUrl("");
+    setAccessMode('public');
+    setLoginUrl("");
+    setLoginUsername("");
+    setLoginPassword("");
+    setLoginRole("");
+    setAcceptedWarning(false);
+  };
+
+  // ── Static bot handlers ──────────────────────────────
   const handleFiles = useCallback((selectedFiles: File[]) => {
     const pdfFiles = selectedFiles.filter((file) => file.type === "application/pdf");
-
     pdfFiles.forEach((file) => {
       const fileId = Date.now().toString() + Math.random();
-      const newFile: UploadedFile = {
-        id: fileId,
-        name: file.name,
-        size: file.size,
-        status: "completed",
-        progress: 100,
-        file,
-      };
-      setFiles((prev) => [...prev, newFile]);
+      setFiles((prev) => [...prev, { id: fileId, name: file.name, size: file.size, status: "completed", progress: 100, file }]);
     });
   }, []);
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => { setIsDragging(false); };
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files) {
-      const selectedFiles = Array.from(e.dataTransfer.files);
-      handleFiles(selectedFiles);
-    }
+    e.preventDefault(); setIsDragging(false);
+    if (e.dataTransfer.files) handleFiles(Array.from(e.dataTransfer.files));
   };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      handleFiles(selectedFiles);
-    }
+    if (e.target.files) handleFiles(Array.from(e.target.files));
   };
+  const removeFile = (fileId: string) => { setFiles((f) => f.filter((file) => file.id !== fileId)); };
 
-  const removeFile = (fileId: string) => {
-    setFiles((files) => files.filter((file) => file.id !== fileId));
-  };
-
-  const handleCreateBot = async () => {
-    if (!companyName) {
-      setError("Please enter a company name");
-      return;
-    }
-
-    if (files.length === 0) {
-      setError("Please upload at least one PDF file");
-      return;
-    }
-
-    setError(null);
-    setIsCreating(true);
-
+  const handleCreateStaticBot = async () => {
+    if (!companyName) { setError("Please enter a bot name"); return; }
+    if (files.length === 0) { setError("Please upload at least one PDF file"); return; }
+    setError(null); setIsCreating(true);
     try {
       const formData = new FormData();
       formData.append("company_name", companyName);
-      files.forEach((file) => {
-        formData.append("files", file.file);
-      });
-
+      files.forEach((file) => formData.append("files", file.file));
       const response = await createBot(formData);
-      setCreatedBotId(response.bot_id);
-      setBotCreated(true);
-    } catch (err) {
-      setError("Failed to create bot. Please try again.");
-    } finally {
-      setIsCreating(false);
+      setCreatedBotId(response.bot_id); setBotCreated(true);
+    } catch (err) { setError("Failed to create bot. Please try again."); }
+    finally { setIsCreating(false); }
+  };
+
+  // ── Dynamic bot handlers ─────────────────────────────
+  const handleCreateDynamicBot = async () => {
+    if (!companyName) { setError("Please enter a bot name"); return; }
+    if (!websiteUrl) { setError("Please enter a website URL"); return; }
+    try {
+      const url = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`;
+      new URL(url);
+    } catch { setError("Please enter a valid URL (e.g. https://example.com)"); return; }
+
+    if (accessMode === 'authenticated') {
+      if (!loginUrl) { setError("Please enter the login page URL"); return; }
+      if (!loginUsername) { setError("Please enter the login username/email"); return; }
+      if (!loginPassword) { setError("Please enter the login password"); return; }
+      if (!acceptedWarning) { setError("Please acknowledge the security notice to proceed"); return; }
     }
+
+    setError(null); setIsCreating(true);
+    try {
+      const response = await createDynamicBot(
+        companyName,
+        websiteUrl,
+        accessMode === 'authenticated' ? loginUrl : undefined,
+        accessMode === 'authenticated' ? loginUsername : undefined,
+        accessMode === 'authenticated' ? loginPassword : undefined,
+        accessMode === 'authenticated' && loginRole ? loginRole : undefined,
+      );
+      setCreatedBotId(response.bot_id);
+      setScrapeStats({ pages: response.pages_scraped, chunks: response.total_chunks });
+      setBotCreated(true);
+      // Clear credentials from memory immediately after use
+      setLoginPassword("");
+      setLoginUsername("");
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Failed to scrape website. Please try again.";
+      setError(msg);
+    } finally { setIsCreating(false); }
   };
 
   return (
-    <div className="min-h-screen animated-gradient">
-      <div className="max-w-[1600px] mx-auto px-6 py-12">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-10"
-        >
-          <motion.div
-            variants={itemVariants}
-            className="mb-10"
-          >
-            <h1 className="text-5xl font-bold gradient-text mb-4">
-              Create a New AI Bot
-            </h1>
-            <p className="text-gray-600 text-lg font-medium">
-              Upload your company documents to create a custom AI bot that can answer questions about your business.
-            </p>
-          </motion.div>
+    <div className="p-8 max-w-5xl fade-in">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-xl font-semibold text-gray-900">Create a New Bot</h1>
+        <p className="text-[13px] text-gray-400 mt-0.5">Choose how to train your AI chatbot</p>
+      </div>
 
-          {/* Main content grid */}
-          <motion.div
-            variants={itemVariants}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"
-          >
-            {/* Left side - Bot creation form or success message */}
-            <div className="glass-card p-8">
-              {!botCreated ? (
-                <>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label htmlFor="companyName" className="block text-sm font-bold text-gray-700 mb-3">
-                        Bot Name
-                      </label>
-                      <input
-                        type="text"
-                        id="companyName"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="Enter a name for your bot"
-                        className="input-field"
-                      />
+      {/* Mode Tabs */}
+      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-8">
+        <button
+          onClick={() => switchMode('static')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ${
+            mode === 'static'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Static Bot
+        </button>
+        <button
+          onClick={() => switchMode('dynamic')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ${
+            mode === 'dynamic'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          Dynamic Bot
+        </button>
+      </div>
+
+      {/* Mode Description */}
+      <div className="mb-6">
+        {mode === 'static' ? (
+          <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg">
+            <FileText className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-[13px] font-medium text-gray-700">Upload PDF documents</p>
+              <p className="text-[12px] text-gray-400 mt-0.5">Train your bot on specific documents. Best for manuals, guides, and knowledge bases.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg">
+            <Globe className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-[13px] font-medium text-gray-700">Scrape a website</p>
+              <p className="text-[12px] text-gray-400 mt-0.5">Provide your website URL and we'll crawl pages, extract content, and build a chatbot from it automatically.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="space-y-6">
+        <AnimatePresence mode="wait">
+          {mode === 'static' ? (
+            <motion.div key="static" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                {!botCreated ? (
+                  <div className="grid grid-cols-2 gap-8">
+                    {/* Left — inputs */}
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center text-white text-[11px] font-semibold">1</div>
+                        <span className="text-[13px] font-medium text-gray-900">Bot Details</span>
+                      </div>
+                      <div>
+                        <label htmlFor="staticBotName" className="block text-[13px] font-medium text-gray-700 mb-1.5">Bot Name</label>
+                        <input type="text" id="staticBotName" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder="e.g. Customer Support Bot" className="input-field" />
+                      </div>
+                      {files.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{files.length} file{files.length !== 1 ? 's' : ''} selected</span>
+                          {files.map((file) => (
+                            <div key={file.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 border border-gray-100 rounded-lg">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="text-[13px] text-gray-700 truncate">{file.name}</span>
+                                <span className="text-[11px] text-gray-400 flex-shrink-0">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                              </div>
+                              <div className="flex items-center gap-2 ml-2">
+                                {file.status === "completed" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                                {file.status === "error" && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                                <button onClick={() => removeFile(file.id)} className="p-0.5 rounded hover:bg-gray-200 transition-colors">
+                                  <Trash2 className="w-3 h-3 text-gray-400" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {error && <ErrorBanner message={error} />}
+                      <button onClick={handleCreateStaticBot} disabled={isCreating} className="btn-primary w-full">
+                        {isCreating ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : <>Create Bot<ArrowRight className="w-4 h-4" /></>}
+                      </button>
+                    </div>
+                    {/* Right — upload zone */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-[11px] font-semibold">2</div>
+                        <span className="text-[13px] font-medium text-gray-900">Upload Documents</span>
+                      </div>
+                      <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                        className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-150 h-[calc(100%-40px)] flex flex-col items-center justify-center ${
+                          isDragging ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
+                        }`}>
+                        <input type="file" id="file-upload" className="hidden" onChange={handleFileSelect} multiple accept=".pdf" />
+                        <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center mb-4 shadow-sm">
+                          <Upload className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <label htmlFor="file-upload" className="text-[13px] text-gray-900 font-medium cursor-pointer hover:underline">Choose PDF files</label>
+                        <p className="text-[12px] text-gray-400 mt-1">or drag and drop here</p>
+                        <p className="text-[11px] text-gray-300 mt-3">Max 10MB per file</p>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="mt-8">
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-3xl p-10 text-center transition-all duration-300 ${isDragging
-                        ? "border-blue-500 bg-blue-50/50 backdrop-blur-sm scale-105"
-                        : "border-gray-300/50 hover:border-blue-400 hover:bg-white/60 backdrop-blur-sm"
-                        }`}
-                    >
-                      <input
-                        type="file"
-                        id="file-upload"
-                        className="hidden"
-                        onChange={handleFileSelect}
-                        multiple
-                        accept=".pdf"
-                      />
-
-                      <div className="space-y-5">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 mx-auto flex items-center justify-center shadow-xl">
-                          <Upload className="w-8 h-8 text-white" />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="file-upload"
-                            className="inline-flex text-sm text-blue-600 hover:text-blue-700 font-bold cursor-pointer transition-colors"
-                          >
-                            <span>Upload PDF files</span>
-                          </label>
-                          <p className="text-sm text-gray-500 mt-2 font-medium">or drag and drop</p>
-                          <p className="text-xs text-gray-400 mt-3 font-medium">Maximum file size: 10MB</p>
+                ) : (
+                  <SuccessState botName={companyName} />
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="dynamic" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                {!botCreated ? (
+                  <div className="space-y-6">
+                    {/* Top row: Bot name + URL */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label htmlFor="dynamicBotName" className="block text-[13px] font-medium text-gray-700 mb-1.5">Bot Name</label>
+                        <input type="text" id="dynamicBotName" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder="e.g. My Company Bot" className="input-field" />
+                      </div>
+                      <div>
+                        <label htmlFor="websiteUrl" className="block text-[13px] font-medium text-gray-700 mb-1.5">Website URL</label>
+                        <div className="relative">
+                          <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input type="url" id="websiteUrl" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)}
+                            placeholder="https://example.com" className="input-field pl-9" />
                         </div>
                       </div>
                     </div>
 
-                    {files.length > 0 && (
-                      <div className="space-y-3 mt-6">
-                        {files.map((file) => (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            key={file.id}
-                            className="flex items-center justify-between p-5 bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-100/50 shadow-md hover:shadow-lg transition-all duration-300"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                                <FileText className="w-6 h-6 text-white" />
+                    {/* Access Mode Toggle */}
+                    <div>
+                      <label className="block text-[13px] font-medium text-gray-700 mb-2">Website Access</label>
+                      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+                        <button
+                          onClick={() => { setAccessMode('public'); setAcceptedWarning(false); }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150 ${
+                            accessMode === 'public' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          Public Website
+                        </button>
+                        <button
+                          onClick={() => setAccessMode('authenticated')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150 ${
+                            accessMode === 'authenticated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          Requires Login
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Authenticated fields */}
+                    <AnimatePresence>
+                      {accessMode === 'authenticated' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-4">
+                            {/* Security Notice */}
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                              <div className="flex items-start gap-3">
+                                <ShieldCheck className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-[13px] font-medium text-amber-800">Security Notice</p>
+                                  <p className="text-[12px] text-amber-700 mt-1 leading-relaxed">
+                                    Your credentials are used <strong>only once</strong> to log into the website during scraping.
+                                    They are processed entirely in-memory and are <strong>never stored, logged, or visible to our servers</strong>.
+                                    Credentials are immediately discarded after the scraping session ends.
+                                  </p>
+                                  <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={acceptedWarning}
+                                      onChange={(e) => setAcceptedWarning(e.target.checked)}
+                                      className="w-3.5 h-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                    />
+                                    <span className="text-[12px] text-amber-800 font-medium">I understand and wish to proceed</span>
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Login fields */}
+                            <div className="grid grid-cols-1 gap-4">
+                              <div>
+                                <label htmlFor="loginUrl" className="block text-[13px] font-medium text-gray-700 mb-1.5">Login Page URL</label>
+                                <div className="relative">
+                                  <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                  <input type="url" id="loginUrl" value={loginUrl} onChange={(e) => setLoginUrl(e.target.value)}
+                                    placeholder="https://example.com/login" className="input-field pl-9" />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label htmlFor="loginUsername" className="block text-[13px] font-medium text-gray-700 mb-1.5">Username / Email</label>
+                                  <input type="text" id="loginUsername" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)}
+                                    placeholder="user@example.com" className="input-field" autoComplete="off" />
+                                </div>
+                                <div>
+                                  <label htmlFor="loginPassword" className="block text-[13px] font-medium text-gray-700 mb-1.5">Password</label>
+                                  <div className="relative">
+                                    <input
+                                      type={showPassword ? "text" : "password"}
+                                      id="loginPassword"
+                                      value={loginPassword}
+                                      onChange={(e) => setLoginPassword(e.target.value)}
+                                      placeholder="••••••••"
+                                      className="input-field pr-10"
+                                      autoComplete="off"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                               <div>
-                                <p className="text-sm font-bold text-gray-900">{file.name}</p>
-                                <p className="text-xs text-gray-500 font-medium">
-                                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                                </p>
+                                <label htmlFor="loginRole" className="block text-[13px] font-medium text-gray-700 mb-1.5">
+                                  User Role <span className="text-gray-400 font-normal">(optional)</span>
+                                </label>
+                                <input type="text" id="loginRole" value={loginRole} onChange={(e) => setLoginRole(e.target.value)}
+                                  placeholder="e.g. Student, Employee, Admin" className="input-field" autoComplete="off" />
+                                <p className="text-[11px] text-gray-400 mt-1">If the login page has role cards or tabs, enter your role here</p>
                               </div>
                             </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                            <div className="flex items-center gap-3">
-                              {file.status === "uploading" && (
-                                <div className="w-32 h-2 rounded-full bg-gray-200 overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300"
-                                    style={{ width: `${file.progress}%` }}
-                                  />
-                                </div>
-                              )}
+                    {error && <ErrorBanner message={error} />}
 
-                              {file.status === "completed" && (
-                                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                              )}
-
-                              {file.status === "error" && (
-                                <XCircle className="w-6 h-6 text-red-500" />
-                              )}
-
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => removeFile(file.id)}
-                                className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-red-50 hover:border-red-300 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                              </motion.button>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
-
-                    {error && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-3 text-red-600 bg-red-50/80 backdrop-blur-sm px-5 py-4 rounded-2xl mt-6 border border-red-200/50 shadow-lg"
-                      >
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <p className="text-sm font-semibold">{error}</p>
-                      </motion.div>
-                    )}
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleCreateBot}
-                      disabled={isCreating}
-                      className="btn-primary w-full mt-8"
-                    >
+                    <button onClick={handleCreateDynamicBot} disabled={isCreating} className="btn-primary w-full">
                       {isCreating ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Creating Bot...
-                        </>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <div>
+                            <span>{accessMode === 'authenticated' ? 'Logging in & scraping…' : 'Scraping website…'}</span>
+                            <span className="ml-1 text-gray-400 text-[11px]">this may take a minute</span>
+                          </div>
+                        </div>
                       ) : (
                         <>
-                          <Sparkles className="w-5 h-5" />
-                          Create Bot
+                          {accessMode === 'authenticated' ? <Lock className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                          {accessMode === 'authenticated' ? 'Login & Scrape' : 'Scrape & Create Bot'}
                         </>
                       )}
-                    </motion.button>
+                    </button>
                   </div>
-                </>
-              ) : (
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-center space-y-6 py-12"
-                >
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-green-600 mx-auto flex items-center justify-center shadow-2xl">
-                    <CheckCircle2 className="w-10 h-10 text-white" />
+                ) : (
+                  <div className="space-y-4">
+                    <SuccessState botName={companyName} />
+                    {scrapeStats && (
+                      <div className="flex items-center justify-center gap-6 pt-2">
+                        <div className="text-center">
+                          <div className="text-2xl font-semibold text-gray-900">{scrapeStats.pages}</div>
+                          <div className="text-[11px] text-gray-400 mt-0.5">Pages scraped</div>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200"></div>
+                        <div className="text-center">
+                          <div className="text-2xl font-semibold text-gray-900">{scrapeStats.chunks}</div>
+                          <div className="text-[11px] text-gray-400 mt-0.5">Text chunks</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <h2 className="text-3xl font-bold gradient-text">Bot Created Successfully!</h2>
-                  <p className="text-gray-600 font-medium">Your bot is ready to use.</p>
-                </motion.div>
-              )}
-            </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Right side - Chat widget */}
-            <div className="glass-card overflow-hidden sticky top-8">
-              {createdBotId ? (
-                <>
-                  <div className="p-8 border-b border-gray-200/50">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Test Your Bot - {companyName}</h3>
-                    <p className="text-sm text-gray-600 font-medium">Start a conversation with your bot to test its responses</p>
-                  </div>
-                  <div className="p-0">
-                    <ChatWidget
-                      botId={createdBotId}
-                      botName={companyName}
-                      companyName={companyName}
-                      className="h-[400px] border-none"
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="h-[600px] flex items-center justify-center text-gray-400 p-8 text-center">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Bot className="w-16 h-16 mx-auto mb-6 opacity-30" />
-                    <p className="text-sm font-medium">Your chat widget will appear here after creating the bot</p>
-                  </motion.div>
-                </div>
-              )}
+        {/* Chat preview */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          {createdBotId ? (
+            <>
+              <div className="px-5 py-4 border-b border-gray-200">
+                <h3 className="text-[15px] font-semibold text-gray-900">Test: {companyName}</h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">Start a conversation</p>
+              </div>
+              <ChatWidget botId={createdBotId} botName={companyName} companyName={companyName} className="h-[350px] border-none rounded-none" />
+            </>
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <div className="text-center">
+                <Bot className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                <p className="text-[13px] text-gray-400">Chat preview appears after bot creation</p>
+              </div>
             </div>
-          </motion.div>
-        </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
+// ── Shared components ────────────────────────────────
+const SuccessState: React.FC<{ botName: string }> = ({ botName }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10">
+    <div className="w-14 h-14 bg-gray-900 rounded-full mx-auto flex items-center justify-center mb-4">
+      <CheckCircle2 className="w-7 h-7 text-white" />
+    </div>
+    <h2 className="text-lg font-semibold text-gray-900 mb-1">Bot created successfully</h2>
+    <p className="text-[13px] text-gray-400">{botName} is ready. Try it below.</p>
+  </motion.div>
+);
+
+const ErrorBanner: React.FC<{ message: string }> = ({ message }) => (
+  <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+    <p className="text-[13px] text-red-600">{message}</p>
+  </div>
+);
 
 export default CreateBot;

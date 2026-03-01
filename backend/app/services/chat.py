@@ -171,7 +171,7 @@ class ChatService:
             collection_name = self._get_collection_name(bot_id)
             
             # 🔹 Improved retrieval
-            results = self.vector_store.search(collection_name, query, limit=5)
+            results = self.vector_store.search(collection_name, query, limit=8)
             
             if not results:
                 return "I don’t have any relevant information to answer your question right now."
@@ -181,36 +181,47 @@ class ChatService:
             for result in results:
                 text = result.get("text", "")
                 score = result.get("score", 0)
-                if score >= 0.2 and text.strip():
+                if score >= 0.15 and text.strip():
                     context_chunks.append(text.strip())
             
             # 🔹 Fallback broader search
             if not context_chunks:
                 try:
-                    broader_results = self.vector_store.search(collection_name, query, limit=8)
+                    broader_results = self.vector_store.search(collection_name, query, limit=12)
                     context_chunks = [r.get("text", "") for r in broader_results if r.get("text")]
                 except Exception:
                     pass
             
             # 🔹 Deduplicate & merge
             unique_chunks = list(dict.fromkeys(context_chunks))
-            context = "\n\n".join(f"- {chunk}" for chunk in unique_chunks[:8])
+            context = "\n\n".join(f"- {chunk}" for chunk in unique_chunks[:10])
             bot_name = bot.get('name', 'an AI assistant')
             
-            # 🔹 Stronger reasoning prompt
-            prompt = f"""
-You are {bot_name}, a knowledgeable and friendly assistant.
-Use the following document excerpts to answer the question accurately and clearly.
-If needed, combine information from multiple excerpts. Avoid saying “not found” unless truly no related info exists.
-If you infer an answer from the context, state it confidently.
+            # 🔹 Enhanced reasoning prompt with synonym understanding & no document leakage
+            prompt = f"""You are {bot_name}, a helpful and knowledgeable assistant.
 
-Document Context:
+CRITICAL RULES:
+1. NEVER mention "documents", "excerpts", "context", "sources", "database", "records", "files", or any internal data mechanism. You simply KNOW the information — speak as a knowledgeable expert, not a search engine.
+2. NEVER say things like "the document doesn't specify", "no information available in my records", or "based on the provided data". Instead, if you truly don't know something, say "I don't have that information right now" naturally.
+3. Understand SYNONYMS and related terms — treat these as equivalent:
+   - "owner" = "seller" = "posted by" = "listed by" = "contact person"
+   - "contact number" = "phone" = "mobile" = "phone number" = "call"
+   - "price" = "cost" = "rate" = "amount" = "how much"
+   - "available" = "in stock" = "for sale" = "listed"
+   - "details" = "info" = "information" = "description"
+4. When the user asks for information, search ALL available knowledge and combine related pieces together. Don't be overly literal with keyword matching.
+5. Format responses cleanly:
+   - Use **bold** for key labels (names, prices, important details)
+   - Use bullet points for listing multiple items or details
+   - Keep responses concise but complete
+   - Use natural, conversational language
+
+Available Knowledge:
 {context}
 
-User Question: {query}
+User's Question: {query}
 
-Answer (use helpful and natural tone):
-"""
+Provide a clear, well-structured, and helpful answer:"""
             try:
                 response_text = await self.ai_service.generate_response(prompt)
                 if not response_text or len(response_text.strip()) == 0:
@@ -228,62 +239,61 @@ Answer (use helpful and natural tone):
             )
 
     async def process_documents(self, bot_id: str, user_id: str, texts: List[str], filenames: List[str] = None, file_sizes: List[int] = None):
-        """Process and store document chunks in vector store"""
+        """
+        Process and store document chunks in vector store.
+
+        Sends chunks in batches of PROCESS_BATCH to add_texts, which
+        itself handles micro-batch upserts and per-batch retries.
+        """
+        PROCESS_BATCH = 100  # chunks per add_texts call
+
         try:
             collection_name = self._get_collection_name(bot_id)
-            
-            # Create collection if not exists
+            total = len(texts)
+            logger.info(f"process_documents: {total} chunks for bot {bot_id}")
+
+            # Ensure collection exists
             try:
                 self.vector_store.create_collection(collection_name)
-                logger.info(f"Created new collection {collection_name}")
+                logger.info(f"Created collection {collection_name}")
             except Exception as e:
                 if "already exists" not in str(e).lower():
-                    logger.error(f"Error creating collection {collection_name}: {str(e)}")
                     raise
                 logger.info(f"Collection {collection_name} already exists")
-            
-            # Prepare metadata
+
+            # Build full metadata list
             metadata = []
             for i, text in enumerate(texts):
-                chunk_metadata = {
+                chunk_meta = {
                     "bot_id": bot_id,
                     "user_id": user_id,
                     "chunk_index": i,
                     "chunk_length": len(text),
                 }
-                
                 if filenames and i < len(filenames):
-                    chunk_metadata["filename"] = filenames[i]
+                    chunk_meta["filename"] = filenames[i]
                 elif filenames and len(filenames) == 1:
-                    chunk_metadata["filename"] = filenames[0]
+                    chunk_meta["filename"] = filenames[0]
                 else:
-                    chunk_metadata["filename"] = f"document_chunk_{i}"
-                
+                    chunk_meta["filename"] = f"document_chunk_{i}"
+
                 if file_sizes and i < len(file_sizes):
-                    chunk_metadata["original_file_size"] = file_sizes[i]
-                
-                metadata.append(chunk_metadata)
-            
-            # Retry logic
-            max_retries = 3
-            retry_delay = 1
-            last_error = None
-            
-            for attempt in range(max_retries):
-                try:
-                    self.vector_store.add_texts(collection_name, texts, metadata)
-                    logger.info(f"Successfully added {len(texts)} texts to collection {collection_name}")
-                    return
-                except Exception as e:
-                    last_error = e
-                    if attempt < max_retries - 1:
-                        logger.warning(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds: {str(e)}")
-                        await asyncio.sleep(retry_delay)
-                        retry_delay *= 2
-            raise last_error
-            
+                    chunk_meta["original_file_size"] = file_sizes[i]
+
+                metadata.append(chunk_meta)
+
+            # Feed to vector store in manageable batches
+            for start in range(0, total, PROCESS_BATCH):
+                end = min(start + PROCESS_BATCH, total)
+                batch_texts = texts[start:end]
+                batch_meta = metadata[start:end]
+                logger.info(f"  Sending batch {start}-{end} of {total} to add_texts")
+                self.vector_store.add_texts(collection_name, batch_texts, batch_meta)
+
+            logger.info(f"✓ process_documents complete: {total} chunks stored for bot {bot_id}")
+
         except Exception as e:
-            logger.error(f"Error processing documents: {str(e)}")
+            logger.error(f"Error processing documents for bot {bot_id}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error processing documents: {str(e)}"

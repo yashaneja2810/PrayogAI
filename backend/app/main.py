@@ -19,11 +19,12 @@ class CustomJSONResponse(JSONResponse):
 
 app = FastAPI(title="Chatbot Builder API", default_response_class=CustomJSONResponse)
 
-# Configure CORS
+# Configure CORS — allow all origins so widgets work on any website
+# The public /api/chat endpoint doesn't use cookies, just Auth headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

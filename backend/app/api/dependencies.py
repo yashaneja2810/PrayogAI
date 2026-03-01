@@ -43,11 +43,6 @@ async def get_current_user(
         except Exception as e:
             auth_error = e
             logger.error(f"Bearer token authentication failed: {str(e)}")
-            # Clear invalid session
-            try:
-                auth_service.client.auth.sign_out()
-            except:
-                pass
             
     # Try session cookie
     if session:

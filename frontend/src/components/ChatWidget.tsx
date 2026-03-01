@@ -105,50 +105,52 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col ${className || 'h-[600px]'}`}>
-      <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-3">
+    <div className={`bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col ${className || 'h-[600px]'}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           <div>
-            <div className="text-gray-900 text-sm font-medium">{botName}</div>
-            <div className="text-gray-500 text-xs">{companyName}</div>
+            <div className="text-sm font-medium text-gray-900">{botName}</div>
+            <div className="text-xs text-gray-500">{companyName}</div>
           </div>
         </div>
         <div className="flex items-center gap-1">
           {onToggleMinimize && (
             <button
               onClick={onToggleMinimize}
-              className="p-1.5 hover:bg-neutral-700 rounded transition-colors"
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              <Minimize2 className="w-4 h-4 text-neutral-400" />
+              <Minimize2 className="w-4 h-4 text-gray-400" />
             </button>
           )}
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-neutral-700 rounded transition-colors"
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              <X className="w-4 h-4 text-neutral-400" />
+              <X className="w-4 h-4 text-gray-400" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                message.sender === 'user'
-                  ? 'bg-black text-white'
+              className={`max-w-[80%] rounded-lg px-3.5 py-2.5 ${message.sender === 'user'
+                  ? 'bg-gray-900 text-white'
                   : 'bg-white border border-gray-200 text-gray-900'
-              }`}
+                }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-              <span className="text-xs text-gray-500 mt-1 block">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
+              <span className={`text-[10px] mt-1.5 block ${message.sender === 'user' ? 'text-gray-400' : 'text-gray-400'
+                }`}>
                 {message.timestamp.toLocaleTimeString()}
               </span>
             </div>
@@ -156,11 +158,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         ))}
         {isTyping && (
           <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-lg px-4 py-2">
+            <div className="bg-white border border-gray-200 rounded-lg px-3.5 py-2.5">
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.15s]"></div>
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.3s]"></div>
               </div>
             </div>
           </div>
@@ -168,20 +170,21 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-3 bg-white border-t border-gray-200">
+      {/* Input */}
+      <div className="px-4 py-3 border-t border-gray-200 bg-white">
         <div className="flex gap-2">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+            placeholder="Type your message…"
+            className="flex-1 input-field"
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim()}
-            className="px-4 py-2 bg-black hover:bg-gray-800 disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-md transition-colors"
+            className="btn-primary px-3"
           >
             <Send className="w-4 h-4" />
           </button>

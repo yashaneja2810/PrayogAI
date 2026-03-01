@@ -16,6 +16,15 @@ from ..core.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# ── Tuning knobs ──────────────────────────────────────────────
+EMBED_BATCH_SIZE = 64          # texts per SentenceTransformer.encode() call
+UPSERT_BATCH_SIZE = 50         # points per Qdrant upsert() call
+QDRANT_TIMEOUT = 120           # seconds – cloud free-tier can be slow
+UPSERT_RETRY_COUNT = 4         # retries per micro-batch upsert
+UPSERT_RETRY_DELAY = 2        # initial backoff in seconds
+# ──────────────────────────────────────────────────────────────
+
+
 class VectorStoreService:
     _instance = None
     _lock = Lock()
@@ -29,13 +38,12 @@ class VectorStoreService:
         return cls._instance
 
     def __init__(self):
-        # Singleton pattern - only initialize once
         if self._initialized:
             return
             
         # Try loading the model with retries
         max_retries = 3
-        retry_delay = 5  # seconds
+        retry_delay = 5
         model_name = 'all-MiniLM-L6-v2'
         
         for attempt in range(max_retries):
@@ -49,164 +57,181 @@ class VectorStoreService:
                 logger.warning(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
         
-        # Initialize Qdrant client
         self._init_qdrant_client()
         self._initialized = True
         
     def _init_qdrant_client(self):
-        """Initialize Qdrant client with configuration"""
+        """Initialize Qdrant client with generous timeout"""
         try:
             if settings.QDRANT_URL:
-                # Use cloud/remote Qdrant instance
                 self.client = QdrantClient(
                     url=settings.QDRANT_URL,
                     api_key=settings.QDRANT_API_KEY,
+                    timeout=QDRANT_TIMEOUT,
                 )
-                logger.info(f"Connected to Qdrant cloud instance: {settings.QDRANT_URL}")
+                logger.info(f"Connected to Qdrant cloud: {settings.QDRANT_URL} (timeout={QDRANT_TIMEOUT}s)")
             else:
-                # Use local Qdrant instance
                 self.client = QdrantClient(
                     host=settings.QDRANT_HOST,
                     port=settings.QDRANT_PORT,
                     api_key=settings.QDRANT_API_KEY,
+                    timeout=QDRANT_TIMEOUT,
                 )
-                logger.info(f"Connected to local Qdrant instance: {settings.QDRANT_HOST}:{settings.QDRANT_PORT}")
+                logger.info(f"Connected to local Qdrant: {settings.QDRANT_HOST}:{settings.QDRANT_PORT}")
                 
-            # Test connection
             collections = self.client.get_collections()
-            logger.info(f"Qdrant connection successful. Found {len(collections.collections)} collections.")
+            logger.info(f"Qdrant OK – {len(collections.collections)} collections found")
             
         except Exception as e:
             logger.error(f"Failed to connect to Qdrant: {str(e)}")
             raise Exception(f"Failed to initialize Qdrant client: {str(e)}")
         
     def create_collection(self, collection_name: str):
-        """Create a new Qdrant collection"""
+        """Create a new Qdrant collection (idempotent)"""
         try:
-            # Check if collection already exists
             try:
-                collection_info = self.client.get_collection(collection_name)
+                self.client.get_collection(collection_name)
                 logger.info(f"Collection {collection_name} already exists")
                 return
             except Exception:
-                # Collection doesn't exist, create it
                 pass
                 
-            # Create collection with vector configuration
             self.client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(
-                    size=384,  # all-MiniLM-L6-v2 embedding dimension
-                    distance=Distance.COSINE,  # Use cosine similarity
+                    size=384,  # all-MiniLM-L6-v2
+                    distance=Distance.COSINE,
                 ),
             )
-            logger.info(f"Successfully created Qdrant collection: {collection_name}")
+            logger.info(f"Created collection: {collection_name}")
             
         except Exception as e:
-            # Handle the case where collection already exists (race condition)
             if "already exists" in str(e).lower():
                 logger.info(f"Collection {collection_name} already exists (race condition)")
                 return
             logger.error(f"Failed to create collection {collection_name}: {str(e)}")
-            raise Exception(f"Failed to create collection {collection_name}: {str(e)}")
-    
+            raise
+
+    # ── Core improvement: batched encode + batched upsert ──────
     def add_texts(self, collection_name: str, texts: List[str], metadata: List[Dict] = None):
-        """Add text chunks to the collection"""
+        """
+        Add text chunks to the collection.
+
+        Processes in two phases:
+          1. Encode embeddings in batches of EMBED_BATCH_SIZE
+          2. Upsert points in batches of UPSERT_BATCH_SIZE
+        Each upsert micro-batch is retried independently.
+        """
         if not texts:
             logger.warning("No texts provided to add_texts")
             return
 
-        try:
-            # Ensure collection exists
-            self.create_collection(collection_name)
-            
-            # Generate embeddings for the texts
-            logger.info(f"Generating embeddings for {len(texts)} texts")
-            embeddings = self.model.encode(texts)
-            
-            # Prepare points for insertion
-            points = []
-            for i, (text, embedding) in enumerate(zip(texts, embeddings)):
-                point_id = str(uuid.uuid4())
-                
-                # Prepare payload (metadata)
-                payload = {
-                    "text": text,
-                    "created_at": datetime.utcnow().isoformat(),
-                }
-                
-                # Add custom metadata if provided
-                if metadata and i < len(metadata):
-                    payload.update(metadata[i])
-                
-                points.append(
-                    PointStruct(
-                        id=point_id,
-                        vector=embedding.tolist(),
-                        payload=payload
-                    )
+        total = len(texts)
+        logger.info(f"add_texts: {total} texts → collection {collection_name}")
+
+        # Ensure collection exists
+        self.create_collection(collection_name)
+
+        # ── Phase 1: generate embeddings in batches ────────────
+        logger.info(f"Phase 1/2: encoding {total} texts (batch_size={EMBED_BATCH_SIZE})")
+        all_embeddings = []
+        for start in range(0, total, EMBED_BATCH_SIZE):
+            end = min(start + EMBED_BATCH_SIZE, total)
+            batch_texts = texts[start:end]
+            batch_embeddings = self.model.encode(batch_texts, show_progress_bar=False)
+            all_embeddings.extend(batch_embeddings)
+            logger.info(f"  Encoded batch {start}-{end} of {total}")
+
+        # ── Phase 2: build points then upsert in batches ───────
+        logger.info(f"Phase 2/2: upserting {total} points (batch_size={UPSERT_BATCH_SIZE})")
+        points = []
+        for i, (text, embedding) in enumerate(zip(texts, all_embeddings)):
+            payload = {
+                "text": text,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            if metadata and i < len(metadata):
+                payload.update(metadata[i])
+
+            points.append(
+                PointStruct(
+                    id=str(uuid.uuid4()),
+                    vector=embedding.tolist(),
+                    payload=payload,
                 )
-            
-            # Insert points into Qdrant
-            operation_info = self.client.upsert(
-                collection_name=collection_name,
-                points=points
             )
-            
-            logger.info(f"Successfully added {len(texts)} texts to collection {collection_name}")
-            logger.debug(f"Operation info: {operation_info}")
-            
-        except Exception as e:
-            logger.error(f"Failed to add texts to collection {collection_name}: {str(e)}")
-            raise Exception(f"Failed to add texts to collection {collection_name}: {str(e)}")
+
+        upserted = 0
+        for start in range(0, len(points), UPSERT_BATCH_SIZE):
+            end = min(start + UPSERT_BATCH_SIZE, len(points))
+            batch = points[start:end]
+            self._upsert_with_retry(collection_name, batch)
+            upserted += len(batch)
+            logger.info(f"  Upserted {upserted}/{total} points")
+
+        logger.info(f"✓ add_texts complete: {total} texts → {collection_name}")
+
+    def _upsert_with_retry(self, collection_name: str, points: List[PointStruct]):
+        """Upsert a single micro-batch with exponential backoff retries."""
+        delay = UPSERT_RETRY_DELAY
+        for attempt in range(UPSERT_RETRY_COUNT):
+            try:
+                self.client.upsert(
+                    collection_name=collection_name,
+                    points=points,
+                )
+                return
+            except Exception as e:
+                if attempt < UPSERT_RETRY_COUNT - 1:
+                    logger.warning(
+                        f"Upsert batch failed (attempt {attempt + 1}/{UPSERT_RETRY_COUNT}), "
+                        f"retrying in {delay}s: {e}"
+                    )
+                    time.sleep(delay)
+                    delay *= 2
+                else:
+                    logger.error(f"Upsert batch failed after {UPSERT_RETRY_COUNT} attempts")
+                    raise
+    # ───────────────────────────────────────────────────────────
 
     def delete_collection(self, collection_name: str):
         """Delete a Qdrant collection"""
         try:
-            # Try to delete the collection directly
             result = self.client.delete_collection(collection_name)
-            logger.info(f"Successfully deleted collection: {collection_name}")
+            logger.info(f"Deleted collection: {collection_name}")
             return result
-            
         except Exception as e:
             error_msg = str(e).lower()
-            # If collection doesn't exist, that's fine
             if "not found" in error_msg or "doesn't exist" in error_msg or "404" in error_msg:
                 logger.info(f"Collection {collection_name} doesn't exist, nothing to delete")
                 return
-            # Otherwise, it's a real error
             logger.error(f"Failed to delete collection {collection_name}: {str(e)}")
             raise Exception(f"Failed to delete collection {collection_name}: {str(e)}")
 
     def search(self, collection_name: str, query: str, limit: int = 5) -> List[Dict]:
-        """Search for similar text chunks using Qdrant"""
+        """Search for similar text chunks"""
         try:
-            # Generate query embedding
             query_vector = self.model.encode([query])[0]
             
-            # Search in Qdrant
             search_result = self.client.search(
                 collection_name=collection_name,
                 query_vector=query_vector.tolist(),
                 limit=limit,
                 with_payload=True,
-                with_vectors=False,  # We don't need vectors in response
+                with_vectors=False,
             )
             
-            # Format results
             results = []
             for scored_point in search_result:
-                # Qdrant returns cosine similarity scores (higher is better)
                 score = float(scored_point.score)
                 payload = scored_point.payload
-                
                 results.append({
                     "text": payload.get("text", ""),
                     "metadata": {k: v for k, v in payload.items() if k != "text"},
                     "score": score
                 })
             
-            logger.info(f"Found {len(results)} results for query '{query}' in collection {collection_name}")
+            logger.info(f"Found {len(results)} results for query in {collection_name}")
             for r in results:
                 logger.debug(f"Score: {r['score']:.3f} | Text: {r['text'][:100]}...")
             
@@ -291,7 +316,7 @@ class VectorStoreService:
     def delete_points(self, collection_name: str, point_ids: List[str]) -> bool:
         """Delete specific points from a collection"""
         try:
-            operation_info = self.client.delete(
+            self.client.delete(
                 collection_name=collection_name,
                 points_selector=models.PointIdsList(
                     points=point_ids
@@ -306,7 +331,7 @@ class VectorStoreService:
     def update_payload(self, collection_name: str, point_id: str, payload: Dict) -> bool:
         """Update payload for a specific point"""
         try:
-            operation_info = self.client.set_payload(
+            self.client.set_payload(
                 collection_name=collection_name,
                 payload=payload,
                 points=[point_id]
@@ -320,7 +345,6 @@ class VectorStoreService:
     def health_check(self) -> Dict:
         """Check Qdrant health and return status"""
         try:
-            # Try to get collections as a health check
             collections = self.client.get_collections()
             return {
                 "status": "healthy",

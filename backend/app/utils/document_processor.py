@@ -84,21 +84,6 @@ class DocumentProcessor:
             return self.process_text(text)
         except Exception as e:
             raise ValueError(f"Error processing file {filename}: {str(e)}")
-        
-        with open(filepath, 'rb') as file:
-            if file_ext == '.pdf':
-                text = self.process_pdf(file)
-            elif file_ext == '.docx':
-                text = self.process_docx(file)
-            elif file_ext == '.txt':
-                text = self.process_txt(file)
-            else:
-                raise ValueError(f"Unsupported file type: {file_ext}. Supported types are: .txt, .pdf, .docx")
-        
-        # Split the text into chunks
-        if text.strip():  # Only process if we have non-empty text
-            return self.process_text(text)
-        return []  # Return empty list if no text was extracted
 
 def generate_widget_code(bot_id: str, company_name: str) -> str:
     """Generate JavaScript widget code for the company"""

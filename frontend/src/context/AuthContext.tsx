@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { login as apiLogin } from '../lib/api';
 
 interface User {
@@ -24,34 +24,28 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Check session storage for existing auth state
+  const [user, setUser] = useState<User | null>(() => {
+    // Synchronously restore auth state from sessionStorage on initial render
+    // to prevent ProtectedRoute from redirecting before useEffect runs
     const token = sessionStorage.getItem('token');
     const storedUser = sessionStorage.getItem('user');
 
     if (!token || !storedUser) {
-      // Clear any partial state
       sessionStorage.clear();
-      setUser(null);
-      return;
+      return null;
     }
 
     try {
-      // Validate stored user data
       const parsedUser = JSON.parse(storedUser);
       if (!parsedUser.id || !parsedUser.email) {
         throw new Error('Invalid user data');
       }
-      setUser(parsedUser);
-    } catch (error) {
-      // Clear invalid state
+      return parsedUser;
+    } catch {
       sessionStorage.clear();
-      setUser(null);
-      window.location.href = '/login';
+      return null;
     }
-  }, []);
+  });
 
   const login = async (email: string, password: string) => {
     try {
@@ -60,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
 
       const response = await apiLogin(email, password);
-      
+
       // Only set new session data if we have valid response data
       if (response.access_token && response.user) {
         sessionStorage.setItem('token', response.access_token);

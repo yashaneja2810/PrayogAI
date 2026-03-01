@@ -1,9 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status, Header
 from ..services.chat import ChatService
 from ..utils.document_processor import DocumentProcessor, generate_widget_code
-from ..models.schemas import ChatRequest, ChatResponse, DocumentUploadResponse
+from ..models.schemas import ChatRequest, ChatResponse, DocumentUploadResponse, WebScrapeRequest, WebScrapeBotResponse
 from fastapi import Body
 from ..services.bot import BotService
+from ..services.web_scraper import WebScraperService
 from .dependencies import get_current_active_user, auth_service
 from typing import List
 from datetime import datetime
@@ -16,6 +17,7 @@ router = APIRouter()
 chat_service = ChatService()
 doc_processor = DocumentProcessor()
 bot_service = BotService()
+web_scraper = WebScraperService()
 
 from ..log_config import logger
 
@@ -227,6 +229,78 @@ async def upload_documents(
         raise HTTPException(
             status_code=500, 
             detail=f"An error occurred while processing the documents: {str(e)}"
+        )
+
+@router.post("/scrape", response_model=WebScrapeBotResponse)
+async def scrape_website(
+    request: WebScrapeRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Create a dynamic bot by scraping a website."""
+    from ..log_config import logger
+    
+    try:
+        if not request.company_name:
+            raise HTTPException(status_code=422, detail="Bot name is required")
+        if not request.website_url:
+            raise HTTPException(status_code=422, detail="Website URL is required")
+        
+        user_id = current_user["id"]
+        logger.info(f"Scrape request from user {user_id}: {request.website_url}")
+        
+        # Step 1: Scrape the website
+        try:
+            scrape_result = await web_scraper.scrape_website(
+                request.website_url,
+                login_url=request.login_url,
+                login_username=request.login_username,
+                login_password=request.login_password,
+                login_role=request.login_role,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        chunks = scrape_result["chunks"]
+        metadata_list = scrape_result["metadata"]
+        
+        if not chunks:
+            raise HTTPException(
+                status_code=400,
+                detail="No content could be extracted from the website."
+            )
+        
+        logger.info(f"Scraped {scrape_result['pages_scraped']} pages, {len(chunks)} chunks")
+        
+        # Step 2: Create bot in Supabase
+        bot_id = await auth_service.create_bot(user_id, name=request.company_name)
+        logger.info(f"Created bot {bot_id} for scraped website")
+        
+        # Step 3: Build filenames + file_sizes arrays (for metadata compatibility)
+        filenames = [f"web:{m.get('source_url', request.website_url)}" for m in metadata_list]
+        file_sizes = [len(c.encode('utf-8')) for c in chunks]
+        
+        # Step 4: Store embeddings via existing pipeline
+        await chat_service.process_documents(bot_id, user_id, chunks, filenames, file_sizes)
+        logger.info(f"Stored {len(chunks)} chunks in Qdrant for bot {bot_id}")
+        
+        # Step 5: Generate widget code
+        widget_code = generate_widget_code(bot_id, request.company_name)
+        
+        return WebScrapeBotResponse(
+            bot_id=bot_id,
+            message=f"Successfully scraped {scrape_result['pages_scraped']} pages and created bot",
+            widget_code=widget_code,
+            pages_scraped=scrape_result["pages_scraped"],
+            total_chunks=scrape_result["total_chunks"],
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in scrape endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error scraping website: {str(e)}"
         )
 
 @router.post("/chat", response_model=ChatResponse)

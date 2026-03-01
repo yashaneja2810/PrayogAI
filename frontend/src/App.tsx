@@ -8,59 +8,47 @@ import { CreateBot } from './pages/CreateBot';
 import { BotsList } from './pages/BotsList';
 import Dashboard from './pages/Dashboard';
 
-// Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" />;
   return <>{children}</>;
+};
+
+const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <Navigation />
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
+    </div>
+  );
 };
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
 
-  // Define which routes should show navigation
-  const showNav = isAuthenticated && location.pathname !== '/login' && location.pathname !== '/signup';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+
+  if (isAuthPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+      </Routes>
+    );
+  }
 
   return (
-    <div className="min-h-screen animated-gradient">
-      {showNav && <Navigation />}
-      <div className="max-w-[1600px] mx-auto">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-bot"
-            element={
-              <ProtectedRoute>
-                <CreateBot />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/bots"
-            element={
-              <ProtectedRoute>
-                <BotsList />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} />} />
-        </Routes>
-      </div>
-    </div>
+    <AppLayout>
+      <Routes>
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/create-bot" element={<ProtectedRoute><CreateBot /></ProtectedRoute>} />
+        <Route path="/bots" element={<ProtectedRoute><BotsList /></ProtectedRoute>} />
+        <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} />} />
+      </Routes>
+    </AppLayout>
   );
 };
 

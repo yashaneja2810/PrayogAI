@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, LayoutGrid, Sparkles, LogOut, LayoutDashboard } from 'lucide-react';
+import { Plus, LayoutGrid, LogOut, LayoutDashboard, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const Navigation: React.FC = () => {
@@ -13,74 +13,64 @@ export const Navigation: React.FC = () => {
     navigate('/login');
   };
 
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/create-bot', label: 'Create Bot', icon: Plus },
+    { path: '/bots', label: 'My Bots', icon: LayoutGrid },
+  ];
+
   return (
-    <nav className="bg-white/70 backdrop-blur-2xl border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-6">
-        <div className="flex items-center justify-between h-20">
-          <div className="flex items-center gap-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center shadow-lg">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <span className="text-gray-900 font-bold text-2xl tracking-tight">
-                  PrayogAI
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                  location.pathname === '/dashboard'
-                    ? 'bg-gradient-to-br from-gray-900 to-gray-700 text-white shadow-lg shadow-gray-900/20'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60 backdrop-blur-sm'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
-              </button>
-              <button
-                onClick={() => navigate('/create-bot')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                  location.pathname === '/create-bot'
-                    ? 'bg-gradient-to-br from-gray-900 to-gray-700 text-white shadow-lg shadow-gray-900/20'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60 backdrop-blur-sm'
-                }`}
-              >
-                <Plus className="w-4 h-4" />
-                Create Bot
-              </button>
-              <button
-                onClick={() => navigate('/bots')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                  location.pathname === '/bots'
-                    ? 'bg-gradient-to-br from-gray-900 to-gray-700 text-white shadow-lg shadow-gray-900/20'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/60 backdrop-blur-sm'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                My Bots
-              </button>
-            </div>
+    <aside className="w-[232px] h-screen bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+      {/* Logo */}
+      <div className="px-5 h-14 flex items-center border-b border-gray-100">
+        <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-gray-900 rounded-md flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-white" />
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50 rounded-xl shadow-md backdrop-blur-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50"></div>
-              <span className="text-green-700 text-xs font-bold">Active</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 text-gray-600 hover:text-gray-900 hover:bg-white/60 backdrop-blur-sm hover:shadow-md"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
-          </div>
-        </div>
+          <span className="text-gray-900 font-semibold text-sm tracking-tight">PrayogAI</span>
+        </button>
       </div>
-    </nav>
+
+      {/* Section label */}
+      <div className="px-5 pt-5 pb-2">
+        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Menu</span>
+      </div>
+
+      {/* Nav Items */}
+      <nav className="flex-1 px-3 space-y-0.5">
+        {navItems.map(({ path, label, icon: Icon }) => {
+          const isActive = location.pathname === path;
+          return (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              className={`w-full flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-medium transition-colors duration-100 ${isActive
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+            >
+              <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-gray-700' : ''}`} strokeWidth={isActive ? 2 : 1.5} />
+              {label}
+              {isActive && <div className="ml-auto w-1 h-4 bg-gray-900 rounded-full" />}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Bottom */}
+      <div className="px-3 py-3 border-t border-gray-100 space-y-1">
+        <div className="flex items-center gap-2 px-3 py-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+          <span className="text-[11px] text-gray-400">Operational</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-medium text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors duration-100"
+        >
+          <LogOut className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
+          Sign Out
+        </button>
+      </div>
+    </aside>
   );
 };

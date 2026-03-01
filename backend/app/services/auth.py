@@ -79,14 +79,11 @@ class AuthService:
         try:
             logger.info(f"Attempting login for email: {email}")
             
-            # Clear any existing session
-            try:
-                self.client.auth.sign_out()
-            except Exception as e:
-                logger.debug(f"Sign out error (non-critical): {str(e)}")
+            # Use a fresh client for sign-in to avoid overwriting the shared client's session
+            login_client = create_client(settings.VITE_SUPABASE_URL, settings.VITE_SUPABASE_ANON_KEY)
 
             # Sign in with email/password
-            auth_response = self.client.auth.sign_in_with_password({
+            auth_response = login_client.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
@@ -114,22 +111,7 @@ class AuthService:
             
             user = User(**auth_response.user.model_dump())
             
-            # Set session with both tokens
-            self.client.auth.set_session(session.access_token, session.refresh_token)
-            
-            # Verify session state
-            try:
-                current_session = self.client.auth.get_session()
-                if not current_session or current_session.access_token != session.access_token:
-                    raise ValueError("Session state mismatch")
-            except Exception as e:
-                logger.error(f"Session verification error: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Session verification failed"
-                )
-            
-            # Prepare response data
+            # Prepare response data (do NOT set session on the shared client)
             data = {
                 "session": session.access_token,
                 "access_token": session.access_token,
@@ -141,6 +123,8 @@ class AuthService:
             
             logger.info(f"Login successful for {email}")
             return data
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Login error for {email}: {str(e)}")
             raise HTTPException(
@@ -199,32 +183,16 @@ class AuthService:
             return []
 
     async def verify_token(self, token: str):
-        """Verify the JWT token and return the user data"""
+        """Verify the JWT token and return the user data (stateless, no shared session mutation)"""
         try:
-            # Try to set up session with the token (don't reinitialize client!)
-            try:
-                self.client.auth.set_session(token, "")
-                
-                # Get user data to verify the token is valid
-                user = self.client.auth.get_user()
-                if user and user.user:
-                    logger.info(f"Token verified successfully for user {user.user.id}")
-                    return user
-            except Exception as e:
-                logger.error(f"Session establishment failed: {str(e)}")
+            # Use get_user(token) directly — this is stateless and does not
+            # overwrite the shared client's session, so multiple users work.
+            user_response = self.client.auth.get_user(token)
+            if user_response and user_response.user:
+                logger.info(f"Token verified successfully for user {user_response.user.id}")
+                return user_response
 
-            # As a fallback, try direct user verification with the token
-            try:
-                user_response = self.client.auth.get_user(token)
-                if user_response and user_response.user:
-                    logger.info(f"Verified user via direct lookup")
-                    # Set the session for subsequent requests
-                    self.client.auth.set_session(token, "")
-                    return user_response
-            except Exception as e:
-                logger.error(f"Direct user verification failed: {str(e)}")
-
-            # If we get here, all verification methods failed
+            # If we get here, verification failed
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token verification failed"
@@ -299,13 +267,10 @@ class AuthService:
             )
             
     async def verify_session(self, session: str):
-        """Verify the session and return the user data"""
+        """Verify the session and return the user data (stateless, no shared session mutation)"""
         try:
-            # Set up session with the token
-            self.client.auth.set_session(session, "")
-            
-            # Verify user data
-            user = self.client.auth.get_user()
+            # Use get_user(token) directly — stateless, does not overwrite shared client session
+            user = self.client.auth.get_user(session)
             if user and user.user:
                 logger.info(f"Session verified for user {user.user.id}")
                 return user.user.model_dump()

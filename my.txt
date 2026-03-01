@@ -1,0 +1,15 @@
+# 1. Navigate to project root
+cd "path\to\new\folder"
+
+# 2. Create virtual environment
+python -m venv .venv
+
+# 3. Activate it
+& .venv\Scripts\Activate.ps1
+
+# 4. Install packages
+pip install -r backend\requirements.txt
+
+# 5. Start server
+cd backend
+uvicorn app.main:app --reload

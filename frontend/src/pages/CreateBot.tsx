@@ -140,15 +140,15 @@ export const CreateBot: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+    <div className="w-full py-6 fade-in">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Create a New Bot</h1>
         <p className="text-[13px] text-gray-500 mt-0.5">Choose how to train your AI chatbot</p>
       </div>
 
       {/* Mode Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-8">
+      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-6">
         <button
           onClick={() => switchMode('static')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ${

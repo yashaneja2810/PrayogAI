@@ -122,9 +122,9 @@ export const BotsList: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+    <div className="w-full py-6 fade-in">
       {/* Header row */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">My Bots</h1>
           <p className="text-[13px] text-gray-500 mt-0.5">{filteredBots.length} bot{filteredBots.length !== 1 ? 's' : ''}</p>

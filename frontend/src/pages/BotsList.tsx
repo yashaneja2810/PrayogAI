@@ -122,12 +122,12 @@ export const BotsList: React.FC = () => {
   }
 
   return (
-    <div className="p-8 max-w-5xl fade-in">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
       {/* Header row */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">My Bots</h1>
-          <p className="text-[13px] text-gray-400 mt-0.5">{filteredBots.length} bot{filteredBots.length !== 1 ? 's' : ''}</p>
+          <p className="text-[13px] text-gray-500 mt-0.5">{filteredBots.length} bot{filteredBots.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-3">
           {error && (
@@ -136,9 +136,9 @@ export const BotsList: React.FC = () => {
             </div>
           )}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search…" className="w-48 pl-8 pr-3 py-[7px] bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 text-[13px] placeholder-gray-400 transition-all" />
+              placeholder="Search…" className="w-48 pl-8 pr-3 py-[7px] bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 text-[13px] placeholder-gray-500 transition-all" />
           </div>
           <button onClick={() => navigate('/create-bot')} className="btn-primary">
             <Plus className="w-4 h-4" />New Bot
@@ -150,16 +150,16 @@ export const BotsList: React.FC = () => {
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {/* Table header */}
         <div className="grid grid-cols-[1fr_120px_160px_140px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200">
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Bot</span>
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Status</span>
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Created</span>
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider text-right">Actions</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Bot</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Status</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Created</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider text-right">Actions</span>
         </div>
 
         {/* Rows */}
         {filteredBots.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <p className="text-[13px] text-gray-400">No bots found</p>
+            <p className="text-[13px] text-gray-500">No bots found</p>
           </div>
         ) : (
           filteredBots.map((bot, idx) => {
@@ -172,9 +172,9 @@ export const BotsList: React.FC = () => {
                 <div className="min-w-0">
                   <div className="text-[14px] font-medium text-gray-900 truncate">{bot.name}</div>
                   {docs === undefined ? (
-                    <div className="flex items-center gap-1 mt-1"><Loader2 className="w-3 h-3 animate-spin text-gray-300" /><span className="text-[11px] text-gray-400">Loading docs…</span></div>
+                    <div className="flex items-center gap-1 mt-1"><Loader2 className="w-3 h-3 animate-spin text-gray-400" /><span className="text-[11px] text-gray-500">Loading docs…</span></div>
                   ) : realDocs.length > 0 ? (
-                    <div className="flex items-center gap-1 mt-1"><FileText className="w-3 h-3 text-gray-400" /><span className="text-[11px] text-gray-400">{realDocs.length} document{realDocs.length !== 1 ? 's' : ''}</span></div>
+                    <div className="flex items-center gap-1 mt-1"><FileText className="w-3 h-3 text-gray-500" /><span className="text-[11px] text-gray-500">{realDocs.length} document{realDocs.length !== 1 ? 's' : ''}</span></div>
                   ) : null}
                 </div>
 
@@ -182,18 +182,18 @@ export const BotsList: React.FC = () => {
                 <div>{getStatusBadge(bot.status)}</div>
 
                 {/* Date */}
-                <div className="text-[12px] text-gray-500">{formatDate(bot.created_at)}</div>
+                <div className="text-[12px] text-gray-600">{formatDate(bot.created_at)}</div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 justify-end">
-                  <button onClick={() => setSelectedBot(bot)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors" title="Test">
+                  <button onClick={() => setSelectedBot(bot)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors" title="Test">
                     <Eye className="w-4 h-4" />
                   </button>
-                  <button onClick={() => setWidgetModalBot(bot)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors" title="Widget code">
+                  <button onClick={() => setWidgetModalBot(bot)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors" title="Widget code">
                     <Code2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => handleDeleteBot(bot)} disabled={!!deletingBot}
-                    className={`p-1.5 rounded-md transition-colors ${deletingBot === bot.bot_id ? 'text-red-300' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`} title="Delete">
+                    className={`p-1.5 rounded-md transition-colors ${deletingBot === bot.bot_id ? 'text-red-300' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'}`} title="Delete">
                     {deletingBot === bot.bot_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </button>
                 </div>
@@ -210,9 +210,9 @@ export const BotsList: React.FC = () => {
             <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="text-[15px] font-semibold text-gray-900">Test: {selectedBot.name}</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">Chat with your AI assistant</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Chat with your AI assistant</p>
               </div>
-              <button onClick={() => setSelectedBot(null)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => setSelectedBot(null)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -252,10 +252,10 @@ export const BotsList: React.FC = () => {
   data-color="#2563eb">
 </script>`}
             </pre>
-            <div className="text-[11px] text-gray-400 space-y-1">
-              <p><span className="font-medium text-gray-500">data-company-name</span> — Header title</p>
-              <p><span className="font-medium text-gray-500">data-color</span> — Primary color</p>
-              <p className="text-gray-400 mt-2">Update <code className="bg-gray-100 px-1 rounded">src</code> URL for production.</p>
+            <div className="text-[11px] text-gray-500 space-y-1">
+              <p><span className="font-medium text-gray-600">data-company-name</span> — Header title</p>
+              <p><span className="font-medium text-gray-600">data-color</span> — Primary color</p>
+              <p className="text-gray-500 mt-2">Update <code className="bg-gray-100 px-1 rounded">src</code> URL for production.</p>
             </div>
           </div>
         )}

@@ -33,7 +33,7 @@ export const Navigation: React.FC = () => {
 
       {/* Section label */}
       <div className="px-5 pt-5 pb-2">
-        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Menu</span>
+        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Menu</span>
       </div>
 
       {/* Nav Items */}
@@ -46,7 +46,7 @@ export const Navigation: React.FC = () => {
               onClick={() => navigate(path)}
               className={`w-full flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-medium transition-colors duration-100 ${isActive
                   ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                 }`}
             >
               <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-gray-700' : ''}`} strokeWidth={isActive ? 2 : 1.5} />
@@ -61,11 +61,11 @@ export const Navigation: React.FC = () => {
       <div className="px-3 py-3 border-t border-gray-100 space-y-1">
         <div className="flex items-center gap-2 px-3 py-1">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-          <span className="text-[11px] text-gray-400">Operational</span>
+          <span className="text-[11px] text-gray-500">Operational</span>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-medium text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors duration-100"
+          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-md text-[13px] font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors duration-100"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
           Sign Out

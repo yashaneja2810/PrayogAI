@@ -140,11 +140,11 @@ export const CreateBot: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-5xl fade-in">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-gray-900">Create a New Bot</h1>
-        <p className="text-[13px] text-gray-400 mt-0.5">Choose how to train your AI chatbot</p>
+        <p className="text-[13px] text-gray-500 mt-0.5">Choose how to train your AI chatbot</p>
       </div>
 
       {/* Mode Tabs */}
@@ -154,7 +154,7 @@ export const CreateBot: React.FC = () => {
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ${
             mode === 'static'
               ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-600 hover:text-gray-800'
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -165,7 +165,7 @@ export const CreateBot: React.FC = () => {
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ${
             mode === 'dynamic'
               ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-600 hover:text-gray-800'
           }`}
         >
           <Globe className="w-4 h-4" />
@@ -180,7 +180,7 @@ export const CreateBot: React.FC = () => {
             <FileText className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-[13px] font-medium text-gray-700">Upload PDF documents</p>
-              <p className="text-[12px] text-gray-400 mt-0.5">Train your bot on specific documents. Best for manuals, guides, and knowledge bases.</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">Train your bot on specific documents. Best for manuals, guides, and knowledge bases.</p>
             </div>
           </div>
         ) : (
@@ -188,7 +188,7 @@ export const CreateBot: React.FC = () => {
             <Globe className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-[13px] font-medium text-gray-700">Scrape a website</p>
-              <p className="text-[12px] text-gray-400 mt-0.5">Provide your website URL and we'll crawl pages, extract content, and build a chatbot from it automatically.</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">Provide your website URL and we'll crawl pages, extract content, and build a chatbot from it automatically.</p>
             </div>
           </div>
         )}
@@ -215,13 +215,13 @@ export const CreateBot: React.FC = () => {
                       </div>
                       {files.length > 0 && (
                         <div className="space-y-1.5">
-                          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{files.length} file{files.length !== 1 ? 's' : ''} selected</span>
+                          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">{files.length} file{files.length !== 1 ? 's' : ''} selected</span>
                           {files.map((file) => (
                             <div key={file.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 border border-gray-100 rounded-lg">
                               <div className="flex items-center gap-2 min-w-0">
                                 <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                                 <span className="text-[13px] text-gray-700 truncate">{file.name}</span>
-                                <span className="text-[11px] text-gray-400 flex-shrink-0">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                                <span className="text-[11px] text-gray-500 flex-shrink-0">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
                               </div>
                               <div className="flex items-center gap-2 ml-2">
                                 {file.status === "completed" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
@@ -254,8 +254,8 @@ export const CreateBot: React.FC = () => {
                           <Upload className="w-5 h-5 text-gray-400" />
                         </div>
                         <label htmlFor="file-upload" className="text-[13px] text-gray-900 font-medium cursor-pointer hover:underline">Choose PDF files</label>
-                        <p className="text-[12px] text-gray-400 mt-1">or drag and drop here</p>
-                        <p className="text-[11px] text-gray-300 mt-3">Max 10MB per file</p>
+                        <p className="text-[12px] text-gray-500 mt-1">or drag and drop here</p>
+                        <p className="text-[11px] text-gray-400 mt-3">Max 10MB per file</p>
                       </div>
                     </div>
                   </div>
@@ -293,7 +293,7 @@ export const CreateBot: React.FC = () => {
                         <button
                           onClick={() => { setAccessMode('public'); setAcceptedWarning(false); }}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150 ${
-                            accessMode === 'public' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            accessMode === 'public' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
                           <Globe className="w-3.5 h-3.5" />
@@ -302,7 +302,7 @@ export const CreateBot: React.FC = () => {
                         <button
                           onClick={() => setAccessMode('authenticated')}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150 ${
-                            accessMode === 'authenticated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            accessMode === 'authenticated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
                           <Lock className="w-3.5 h-3.5" />
@@ -386,11 +386,11 @@ export const CreateBot: React.FC = () => {
                               </div>
                               <div>
                                 <label htmlFor="loginRole" className="block text-[13px] font-medium text-gray-700 mb-1.5">
-                                  User Role <span className="text-gray-400 font-normal">(optional)</span>
+                                  User Role <span className="text-gray-500 font-normal">(optional)</span>
                                 </label>
                                 <input type="text" id="loginRole" value={loginRole} onChange={(e) => setLoginRole(e.target.value)}
                                   placeholder="e.g. Student, Employee, Admin" className="input-field" autoComplete="off" />
-                                <p className="text-[11px] text-gray-400 mt-1">If the login page has role cards or tabs, enter your role here</p>
+                                <p className="text-[11px] text-gray-500 mt-1">If the login page has role cards or tabs, enter your role here</p>
                               </div>
                             </div>
                           </div>
@@ -406,7 +406,7 @@ export const CreateBot: React.FC = () => {
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <div>
                             <span>{accessMode === 'authenticated' ? 'Logging in & scraping…' : 'Scraping website…'}</span>
-                            <span className="ml-1 text-gray-400 text-[11px]">this may take a minute</span>
+                            <span className="ml-1 text-gray-500 text-[11px]">this may take a minute</span>
                           </div>
                         </div>
                       ) : (
@@ -424,12 +424,12 @@ export const CreateBot: React.FC = () => {
                       <div className="flex items-center justify-center gap-6 pt-2">
                         <div className="text-center">
                           <div className="text-2xl font-semibold text-gray-900">{scrapeStats.pages}</div>
-                          <div className="text-[11px] text-gray-400 mt-0.5">Pages scraped</div>
+                          <div className="text-[11px] text-gray-500 mt-0.5">Pages scraped</div>
                         </div>
                         <div className="w-px h-8 bg-gray-200"></div>
                         <div className="text-center">
                           <div className="text-2xl font-semibold text-gray-900">{scrapeStats.chunks}</div>
-                          <div className="text-[11px] text-gray-400 mt-0.5">Text chunks</div>
+                          <div className="text-[11px] text-gray-500 mt-0.5">Text chunks</div>
                         </div>
                       </div>
                     )}
@@ -446,7 +446,7 @@ export const CreateBot: React.FC = () => {
             <>
               <div className="px-5 py-4 border-b border-gray-200">
                 <h3 className="text-[15px] font-semibold text-gray-900">Test: {companyName}</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">Start a conversation</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Start a conversation</p>
               </div>
               <ChatWidget botId={createdBotId} botName={companyName} companyName={companyName} className="h-[350px] border-none rounded-none" />
             </>
@@ -454,7 +454,7 @@ export const CreateBot: React.FC = () => {
             <div className="h-64 flex items-center justify-center">
               <div className="text-center">
                 <Bot className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                <p className="text-[13px] text-gray-400">Chat preview appears after bot creation</p>
+                <p className="text-[13px] text-gray-500">Chat preview appears after bot creation</p>
               </div>
             </div>
           )}
@@ -471,7 +471,7 @@ const SuccessState: React.FC<{ botName: string }> = ({ botName }) => (
       <CheckCircle2 className="w-7 h-7 text-white" />
     </div>
     <h2 className="text-lg font-semibold text-gray-900 mb-1">Bot created successfully</h2>
-    <p className="text-[13px] text-gray-400">{botName} is ready. Try it below.</p>
+    <p className="text-[13px] text-gray-500">{botName} is ready. Try it below.</p>
   </motion.div>
 );
 

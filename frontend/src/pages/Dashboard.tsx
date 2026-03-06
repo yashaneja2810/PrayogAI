@@ -26,7 +26,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="p-8 max-w-5xl fade-in">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
       {/* Welcome banner */}
       <div className="bg-gray-900 rounded-xl p-8 mb-8 relative overflow-hidden">
         <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-[0.05]">
@@ -34,7 +34,7 @@ const Dashboard = () => {
         </div>
         <div className="relative">
           <h1 className="text-xl font-semibold text-white mb-1.5">Welcome to PrayogAI</h1>
-          <p className="text-sm text-gray-400 mb-6 max-w-md">
+          <p className="text-sm text-gray-500 mb-6 max-w-md">
             Build, deploy, and manage intelligent AI chatbots powered by your own documents.
           </p>
           <Link to="/create-bot" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-[13px] font-medium rounded-lg hover:bg-gray-100 transition-colors">
@@ -47,7 +47,7 @@ const Dashboard = () => {
       {/* Stats + Tech in a row */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-3">Total Bots</div>
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">Total Bots</div>
           <div className="flex items-end justify-between">
             <span className="text-4xl font-semibold text-gray-900 tabular-nums">{isLoading ? '–' : stats.totalBots}</span>
             <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -56,11 +56,11 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-3">AI Engine</div>
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">AI Engine</div>
           <div className="flex items-end justify-between">
             <div>
               <span className="text-lg font-semibold text-gray-900">Google Gemini</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">Language model</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Language model</p>
             </div>
             <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
               <Zap className="w-[18px] h-[18px] text-gray-500" />
@@ -68,11 +68,11 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-3">Vector Store</div>
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">Vector Store</div>
           <div className="flex items-end justify-between">
             <div>
               <span className="text-lg font-semibold text-gray-900">Qdrant Cloud</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">Semantic search</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Semantic search</p>
             </div>
             <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-[18px] h-[18px] text-gray-500" />
@@ -99,7 +99,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-[13px] font-medium text-gray-900">{title}</span>
-                  <span className="text-[12px] text-gray-400 ml-2">{desc}</span>
+                  <span className="text-[12px] text-gray-500 ml-2">{desc}</span>
                 </div>
               </div>
             ))}
@@ -115,22 +115,22 @@ const Dashboard = () => {
                 <Plus className="w-4 h-4 text-white" />
               </div>
               <span className="text-[13px] font-medium text-gray-900 flex-1">Create New Bot</span>
-              <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </Link>
             <Link to="/bots" className="group flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
               <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center">
                 <Bot className="w-4 h-4 text-gray-500" />
               </div>
               <span className="text-[13px] font-medium text-gray-900 flex-1">Manage Bots</span>
-              <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </Link>
           </div>
 
           <div className="mt-6 pt-5 border-t border-gray-100">
-            <div className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-3">System Status</div>
+            <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">System Status</div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span className="text-[12px] text-gray-600">All services operational</span>
+              <span className="text-[12px] text-gray-700">All services operational</span>
             </div>
           </div>
         </div>

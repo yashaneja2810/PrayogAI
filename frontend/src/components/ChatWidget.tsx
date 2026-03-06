@@ -112,7 +112,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           <div>
             <div className="text-sm font-medium text-gray-900">{botName}</div>
-            <div className="text-xs text-gray-500">{companyName}</div>
+            <div className="text-xs text-gray-600">{companyName}</div>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -121,7 +121,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
               onClick={onToggleMinimize}
               className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              <Minimize2 className="w-4 h-4 text-gray-400" />
+              <Minimize2 className="w-4 h-4 text-gray-500" />
             </button>
           )}
           {onClose && (
@@ -129,7 +129,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              <X className="w-4 h-4 text-gray-400" />
+              <X className="w-4 h-4 text-gray-500" />
             </button>
           )}
         </div>
@@ -149,7 +149,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                 }`}
             >
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
-              <span className={`text-[10px] mt-1.5 block ${message.sender === 'user' ? 'text-gray-400' : 'text-gray-400'
+              <span className={`text-[10px] mt-1.5 block ${message.sender === 'user' ? 'text-gray-500' : 'text-gray-500'
                 }`}>
                 {message.timestamp.toLocaleTimeString()}
               </span>

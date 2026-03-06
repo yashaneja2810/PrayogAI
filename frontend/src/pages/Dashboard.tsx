@@ -26,15 +26,15 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+    <div className="w-full py-6 fade-in">
       {/* Welcome banner */}
-      <div className="bg-gray-900 rounded-xl p-8 mb-8 relative overflow-hidden">
+      <div className="bg-gray-900 rounded-xl p-6 mb-6 relative overflow-hidden">
         <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-[0.05]">
           <Zap className="w-40 h-40" strokeWidth={1} />
         </div>
         <div className="relative">
           <h1 className="text-xl font-semibold text-white mb-1.5">Welcome to PrayogAI</h1>
-          <p className="text-sm text-gray-500 mb-6 max-w-md">
+          <p className="text-sm text-gray-500 mb-5 max-w-md">
             Build, deploy, and manage intelligent AI chatbots powered by your own documents.
           </p>
           <Link to="/create-bot" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-[13px] font-medium rounded-lg hover:bg-gray-100 transition-colors">
@@ -45,9 +45,9 @@ const Dashboard = () => {
       </div>
 
       {/* Stats + Tech in a row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">Total Bots</div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Total Bots</div>
           <div className="flex items-end justify-between">
             <span className="text-4xl font-semibold text-gray-900 tabular-nums">{isLoading ? '–' : stats.totalBots}</span>
             <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -55,8 +55,8 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">AI Engine</div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">AI Engine</div>
           <div className="flex items-end justify-between">
             <div>
               <span className="text-lg font-semibold text-gray-900">Google Gemini</span>
@@ -67,8 +67,8 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">Vector Store</div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Vector Store</div>
           <div className="flex items-end justify-between">
             <div>
               <span className="text-lg font-semibold text-gray-900">Qdrant Cloud</span>
@@ -84,8 +84,8 @@ const Dashboard = () => {
       {/* Two-column: Capabilities + Quick Actions */}
       <div className="grid grid-cols-5 gap-4">
         {/* Capabilities — spans 3 cols */}
-        <div className="col-span-3 bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Platform Capabilities</h2>
+        <div className="col-span-3 bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-3">Platform Capabilities</h2>
           <div className="space-y-2">
             {[
               { icon: FileText, title: 'Document Processing', desc: 'Upload PDFs, DOCX, TXT to train your bot' },
@@ -107,8 +107,8 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions — spans 2 cols */}
-        <div className="col-span-2 bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-3">Quick Actions</h2>
           <div className="space-y-2">
             <Link to="/create-bot" className="group flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
               <div className="w-8 h-8 bg-gray-900 rounded-md flex items-center justify-center">
@@ -126,8 +126,8 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3">System Status</div>
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">System Status</div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
               <span className="text-[12px] text-gray-700">All services operational</span>

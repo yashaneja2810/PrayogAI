@@ -209,10 +209,62 @@ class VectorStoreService:
             raise Exception(f"Failed to delete collection {collection_name}: {str(e)}")
 
     def search(self, collection_name: str, query: str, limit: int = 5) -> List[Dict]:
-        """Search for similar text chunks"""
+        """Search for similar text chunks using query_points"""
+        try:
+            # Check if collection exists first
+            try:
+                collection_info = self.client.get_collection(collection_name)
+                logger.info(f"Searching collection {collection_name}: {collection_info.points_count} total points")
+            except Exception:
+                logger.warning(f"Collection {collection_name} does not exist or is empty")
+                return []
+            
+            # Encode the query to get vector
+            query_vector = self.model.encode([query])[0]
+            
+            # Use query_points API instead of search
+            search_result = self.client.query_points(
+                collection_name=collection_name,
+                query=query_vector.tolist(),
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+            
+            results = []
+            if search_result and hasattr(search_result, 'points'):
+                for point in search_result.points:
+                    score = float(point.score) if hasattr(point, 'score') else 0.0
+                    payload = point.payload if hasattr(point, 'payload') else {}
+                    results.append({
+                        "text": payload.get("text", "") if payload else "",
+                        "metadata": {k: v for k, v in payload.items() if k != "text"} if payload else {},
+                        "score": score
+                    })
+            
+            logger.info(f"Search returned {len(results)} results for query: '{query[:50]}...'")
+            for i, r in enumerate(results[:3]):
+                logger.debug(f"Result {i+1}: Score={r['score']:.3f} | Text: {r['text'][:80]}...")
+            
+            return results
+            
+        except AttributeError as e:
+            if "query_points" in str(e):
+                # Fallback for older qdrant-client versions that use search instead
+                logger.warning(f"query_points not available, trying legacy search method: {str(e)}")
+                return self._search_legacy(collection_name, query, limit)
+            logger.error(f"Error searching collection {collection_name}: {str(e)}", exc_info=True)
+            return []
+        except Exception as e:
+            logger.error(f"Error searching collection {collection_name}: {str(e)}", exc_info=True)
+            return []
+    
+    def _search_legacy(self, collection_name: str, query: str, limit: int = 5) -> List[Dict]:
+        """Legacy search fallback for qdrant-client < 1.0"""
         try:
             query_vector = self.model.encode([query])[0]
             
+            # Try using search method with point vectors
             search_result = self.client.search(
                 collection_name=collection_name,
                 query_vector=query_vector.tolist(),
@@ -224,21 +276,16 @@ class VectorStoreService:
             results = []
             for scored_point in search_result:
                 score = float(scored_point.score)
-                payload = scored_point.payload
+                payload = scored_point.payload if hasattr(scored_point, 'payload') else {}
                 results.append({
                     "text": payload.get("text", ""),
                     "metadata": {k: v for k, v in payload.items() if k != "text"},
                     "score": score
                 })
             
-            logger.info(f"Found {len(results)} results for query in {collection_name}")
-            for r in results:
-                logger.debug(f"Score: {r['score']:.3f} | Text: {r['text'][:100]}...")
-            
             return results
-            
         except Exception as e:
-            logger.error(f"Error searching collection {collection_name}: {str(e)}")
+            logger.error(f"Legacy search also failed: {str(e)}")
             return []
 
     def get_collection_info(self, collection_name: str) -> Optional[Dict]:

@@ -171,12 +171,12 @@ class ChatService:
             collection_name = self._get_collection_name(bot_id)
             
             # 🔹 Improved retrieval
-            results = self.vector_store.search(collection_name, query, limit=8)
+            results = self.vector_store.search(collection_name, query, limit=10)
             
             if not results:
-                return "I don’t have any relevant information to answer your question right now."
+                logger.warning(f"No search results for bot {bot_id}, query: {query}")
             
-            # 🔹 Lowered threshold and deduplication
+            # Multi-phase threshold adjustment
             context_chunks = []
             for result in results:
                 text = result.get("text", "")
@@ -184,13 +184,27 @@ class ChatService:
                 if score >= 0.15 and text.strip():
                     context_chunks.append(text.strip())
             
-            # 🔹 Fallback broader search
-            if not context_chunks:
+            # Phase 2: Loosen threshold if not enough
+            if len(context_chunks) < 3 and results:
+                for result in results:
+                    text = result.get("text", "")
+                    score = result.get("score", 0)
+                    if 0.10 <= score < 0.15 and text.strip():
+                        context_chunks.append(text.strip())
+            
+            # Phase 3: Broader search fallback
+            if len(context_chunks) < 3:
                 try:
-                    broader_results = self.vector_store.search(collection_name, query, limit=12)
-                    context_chunks = [r.get("text", "") for r in broader_results if r.get("text")]
+                    broader_results = self.vector_store.search(collection_name, query, limit=15)
+                    for result in broader_results:
+                        text = result.get("text", "")
+                        if text.strip() and text not in context_chunks:
+                            context_chunks.append(text.strip())
                 except Exception:
                     pass
+            
+            if not context_chunks:
+                return "I don't have any relevant information to answer your question right now. Please ensure documents have been uploaded."
             
             # 🔹 Deduplicate & merge
             unique_chunks = list(dict.fromkeys(context_chunks))

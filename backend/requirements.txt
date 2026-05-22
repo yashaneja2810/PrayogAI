@@ -19,7 +19,7 @@ transformers==4.30.2
 sentence-transformers==2.2.2
 huggingface-hub==0.16.4
 qdrant-client==1.7.0
-google-generativeai==0.8.0
+groq==0.15.0
 langchain==0.1.0
 
 # Document Processing
@@ -30,3 +30,5 @@ python-slugify==8.0.1
 chardet==5.2.0
 beautifulsoup4==4.12.2
 requests==2.31.0
+selenium==4.23.1
+playwright==1.46.0

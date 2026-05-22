@@ -165,79 +165,50 @@ class ChatService:
             )
 
     async def get_response(self, bot_id: str, user_id: Optional[str], query: str, token: str = None) -> str:
-        """Get response from Gemini based on context from vector store"""
+        """Get response from Groq based on context from vector store"""
         try:
             bot = await self.verify_bot_access(bot_id, user_id, token)
             collection_name = self._get_collection_name(bot_id)
             
-            # 🔹 Improved retrieval
             results = self.vector_store.search(collection_name, query, limit=10)
             
             if not results:
                 logger.warning(f"No search results for bot {bot_id}, query: {query}")
             
-            # Multi-phase threshold adjustment
             context_chunks = []
-            for result in results:
+            for result in results[:5]:
                 text = result.get("text", "")
-                score = result.get("score", 0)
-                if score >= 0.15 and text.strip():
+                if text.strip():
                     context_chunks.append(text.strip())
-            
-            # Phase 2: Loosen threshold if not enough
-            if len(context_chunks) < 3 and results:
-                for result in results:
+
+            if len(context_chunks) < 5 and len(results) > 5:
+                for result in results[5:10]:
                     text = result.get("text", "")
-                    score = result.get("score", 0)
-                    if 0.10 <= score < 0.15 and text.strip():
+                    if text.strip():
                         context_chunks.append(text.strip())
-            
-            # Phase 3: Broader search fallback
-            if len(context_chunks) < 3:
-                try:
-                    broader_results = self.vector_store.search(collection_name, query, limit=15)
-                    for result in broader_results:
-                        text = result.get("text", "")
-                        if text.strip() and text not in context_chunks:
-                            context_chunks.append(text.strip())
-                except Exception:
-                    pass
-            
-            if not context_chunks:
-                return "I don't have any relevant information to answer your question right now. Please ensure documents have been uploaded."
-            
+
             # 🔹 Deduplicate & merge
             unique_chunks = list(dict.fromkeys(context_chunks))
             context = "\n\n".join(f"- {chunk}" for chunk in unique_chunks[:10])
             bot_name = bot.get('name', 'an AI assistant')
-            
-            # 🔹 Enhanced reasoning prompt with synonym understanding & no document leakage
-            prompt = f"""You are {bot_name}, a helpful and knowledgeable assistant.
 
-CRITICAL RULES:
-1. NEVER mention "documents", "excerpts", "context", "sources", "database", "records", "files", or any internal data mechanism. You simply KNOW the information — speak as a knowledgeable expert, not a search engine.
-2. NEVER say things like "the document doesn't specify", "no information available in my records", or "based on the provided data". Instead, if you truly don't know something, say "I don't have that information right now" naturally.
-3. Understand SYNONYMS and related terms — treat these as equivalent:
-   - "owner" = "seller" = "posted by" = "listed by" = "contact person"
-   - "contact number" = "phone" = "mobile" = "phone number" = "call"
-   - "price" = "cost" = "rate" = "amount" = "how much"
-   - "available" = "in stock" = "for sale" = "listed"
-   - "details" = "info" = "information" = "description"
-4. When the user asks for information, search ALL available knowledge and combine related pieces together. Don't be overly literal with keyword matching.
-5. Format responses cleanly:
-   - Use **bold** for key labels (names, prices, important details)
-   - Use bullet points for listing multiple items or details
-   - Keep responses concise but complete
-   - Use natural, conversational language
+            try:
+                if context:
+                    knowledge_context = f"""Bot name: {bot_name}
 
-Available Knowledge:
+Use the following retrieved bot knowledge as the primary source of truth:
 {context}
 
-User's Question: {query}
+When the knowledge is relevant, answer from it directly and combine related chunks.
+Do not mention retrieval, embeddings, or internal database details in the final answer.
+Format the answer with markdown when it improves readability."""
+                else:
+                    knowledge_context = f"""Bot name: {bot_name}
 
-Provide a clear, well-structured, and helpful answer:"""
-            try:
-                response_text = await self.ai_service.generate_response(prompt)
+No indexed knowledge is available for this bot yet.
+Answer naturally and do not pretend to have retrieved bot-specific information."""
+
+                response_text = await self.ai_service.generate_response(query, context=knowledge_context)
                 if not response_text or len(response_text.strip()) == 0:
                     return "I'm sorry, I couldn't generate a meaningful response at this time. Please try again."
                 return response_text.strip()

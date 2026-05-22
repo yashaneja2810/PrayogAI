@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     VITE_SUPABASE_URL: str = os.getenv("VITE_SUPABASE_URL", "")
     VITE_SUPABASE_ANON_KEY: str = os.getenv("VITE_SUPABASE_ANON_KEY", "")
 
-    # Google API Settings
-    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+    # Groq API Settings
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     # Qdrant Settings
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")

@@ -124,7 +124,7 @@ class ChatService:
             )
     
     async def get_response(self, bot_id: str, user_id: str, query: str) -> str:
-        """Get response from Gemini based on context from vector store"""
+        """Get response from Groq based on context from vector store"""
         try:
             # Verify bot access
             bot = await self.verify_bot_access(bot_id, user_id)

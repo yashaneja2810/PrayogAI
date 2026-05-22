@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Send, Minimize2, X } from 'lucide-react';
 import { sendChatMessage } from '../lib/botApi';
 
@@ -143,13 +144,19 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-3.5 py-2.5 ${message.sender === 'user'
+              className={`max-w-[85%] rounded-lg px-3.5 py-2.5 ${message.sender === 'user'
                   ? 'bg-gray-900 text-white'
                   : 'bg-white border border-gray-200 text-gray-900'
                 }`}
             >
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
-              <span className={`text-[10px] mt-1.5 block ${message.sender === 'user' ? 'text-gray-500' : 'text-gray-500'
+              {message.sender === 'user' ? (
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
+              ) : (
+                <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
+                </div>
+              )}
+              <span className={`text-[10px] mt-1.5 block ${message.sender === 'user' ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                 {message.timestamp.toLocaleTimeString()}
               </span>

@@ -10,7 +10,7 @@ setup(
         "python-dotenv>=1.0.0",
         "pydantic>=2.0.0",
         "langchain>=0.0.200",
-        "google-generativeai>=0.2.0",
+        "groq>=0.15.0",
         "numpy>=1.24.0",
         "torch>=2.0.0",
         "transformers==4.30.2",

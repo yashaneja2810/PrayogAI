@@ -183,15 +183,34 @@
 
   // Format bot response with markdown-like syntax
   function formatBotResponse(text) {
+    // Escape HTML to prevent XSS
+    var div = document.createElement('div');
+    div.innerText = text;
+    text = div.innerHTML;
+
     // Convert **bold** to styled text
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Convert bullet points
-    text = text.replace(/^- (.*)/gm, '• $1');
-    // Convert numbered lists
-    text = text.replace(/^\d+\. (.*)/gm, function(match) {
-      return '  ' + match;  // Add indentation to numbered lists
+    
+    // Split into lines for list processing
+    var lines = text.split('\n');
+    var htmlLines = [];
+    var inList = false;
+
+    lines.forEach(function(line) {
+      if (line.match(/^- (.*)/)) {
+        if (!inList) { htmlLines.push('<ul style="margin: 4px 0 4px 16px; padding: 0;">'); inList = true; }
+        htmlLines.push('<li style="margin-bottom: 2px;">' + line.replace(/^- (.*)/, '$1') + '</li>');
+      } else if (line.match(/^\d+\. (.*)/)) {
+        if (!inList) { htmlLines.push('<ol style="margin: 4px 0 4px 16px; padding: 0;">'); inList = true; }
+        htmlLines.push('<li style="margin-bottom: 2px;">' + line.replace(/^\d+\. (.*)/, '$1') + '</li>');
+      } else {
+        if (inList) { htmlLines.push(line.match(/^\d+\. (.*)/) ? '</ol>' : '</ul>'); inList = false; }
+        htmlLines.push(line);
+      }
     });
-    return text;
+    if (inList) { htmlLines.push('</ul>'); } // close if ending on a list
+
+    return htmlLines.join('<br>').replace(/>\s*<br>/g, '>').replace(/<br>\s*</g, '<');
   }
 
   // Send message
@@ -203,9 +222,11 @@
     var bubble = document.createElement('span');
     bubble.className = 'message-bubble ' + (from === 'user' ? 'user-message' : 'bot-message');
     bubble.style.display = 'inline-block';
-    bubble.style.maxWidth = '80%';
-    bubble.style.padding = '8px 12px';
-    bubble.style.borderRadius = '8px';
+    bubble.style.maxWidth = '85%';
+    bubble.style.padding = '10px 14px';
+    bubble.style.borderRadius = '12px';
+    bubble.style.lineHeight = '1.4';
+    bubble.style.fontSize = '14px';
     bubble.style.background = from === 'user' ? widgetColor : (isDarkMode ? themeConfig.dark.messageBackground : themeConfig.light.messageBackground);
     bubble.style.color = from === 'user' ? '#fff' : (isDarkMode ? themeConfig.dark.text : themeConfig.light.text);
     bubble.style.whiteSpace = 'pre-wrap';

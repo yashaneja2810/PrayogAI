@@ -69,7 +69,7 @@ class WebScraperService:
         has_credentials = bool(login_url and login_username and login_password)
 
         if has_credentials:
-            # Authenticated sites always need Selenium (cookies don't transfer to aiohttp)
+            # Authenticated sites still use Selenium because the login flow is already implemented there.
             logger.info(f"Starting AUTHENTICATED crawl: {root_url}  (domain={domain})")
             page_results = await self._selenium_crawl(
                 root_url, domain,
@@ -82,9 +82,13 @@ class WebScraperService:
             logger.info(f"Starting crawl: {root_url}  (domain={domain}, max={MAX_PAGES})")
             # Phase 1: fast HTTP crawl
             page_results = await self._http_crawl(root_url, domain)
-            # Phase 2: if HTTP got nothing, fallback to Selenium
+            # Phase 2: if HTTP got nothing, use Playwright to render the SPA.
             if not page_results:
-                logger.warning("HTTP crawl found no content — switching to Selenium")
+                logger.warning("HTTP crawl found no content — switching to Playwright")
+                page_results = await self._playwright_crawl(root_url, domain)
+            # Phase 3: keep the existing Selenium fallback as a last resort.
+            if not page_results:
+                logger.warning("Playwright crawl found no content — switching to Selenium")
                 page_results = await self._selenium_crawl(root_url, domain)
 
         if not page_results:
@@ -207,6 +211,77 @@ class WebScraperService:
             return results or []
         except Exception as e:
             logger.error(f"Selenium crawl failed: {e}")
+            return []
+
+    async def _playwright_crawl(
+        self, root_url: str, domain: str,
+        login_url: str = None, login_username: str = None, login_password: str = None,
+        login_role: str = None,
+    ) -> List[Dict]:
+        """Render SPA content using Playwright and extract text from the live DOM."""
+        try:
+            from playwright.async_api import async_playwright
+        except Exception as e:
+            logger.warning(f"Playwright is unavailable: {e}")
+            return []
+
+        page_results: List[Dict] = []
+        visited: Set[str] = set()
+        to_visit: List[str] = [root_url]
+
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(user_agent=USER_AGENT, viewport={"width": 1920, "height": 1080})
+                page = await context.new_page()
+
+                while to_visit and len(visited) < SELENIUM_MAX_PAGES:
+                    url = to_visit.pop(0)
+                    url_clean = self._normalise_url(url)
+
+                    if url_clean in visited:
+                        continue
+                    visited.add(url_clean)
+
+                    try:
+                        await page.goto(url_clean, wait_until="networkidle", timeout=REQUEST_TIMEOUT * 1000)
+                        await page.wait_for_timeout(1500)
+
+                        html = await page.content()
+                        page_data = self._extract_page_data(html, url_clean)
+
+                        if not page_data["text"]:
+                            body_text = await page.locator("body").inner_text(timeout=5000)
+                            if body_text and len(body_text.strip()) > MIN_CONTENT_LEN:
+                                title = await page.title() or url_clean
+                                page_data = {
+                                    "url": url_clean,
+                                    "title": title,
+                                    "text": f"Page: {title}\nURL: {url_clean}\n\n{body_text}",
+                                    "links": [],
+                                }
+
+                        if page_data["text"]:
+                            page_results.append(page_data)
+                            logger.info(f"  ✓ [Playwright] {url_clean}  ({len(page_data['text'])} chars)")
+
+                        for link in page_data.get("links", []):
+                            link_clean = self._normalise_url(link)
+                            link_domain = urlparse(link_clean).netloc
+                            if link_domain == domain and link_clean not in visited:
+                                to_visit.append(link_clean)
+
+                    except Exception as e:
+                        logger.warning(f"  ✗ [Playwright] Failed: {url_clean}: {e}")
+
+                await context.close()
+                await browser.close()
+
+            logger.info(f"Playwright crawl done: visited {len(visited)} URLs, got {len(page_results)} pages")
+            return page_results
+
+        except Exception as e:
+            logger.error(f"Playwright crawl failed: {e}")
             return []
 
     def _selenium_crawl_sync(
